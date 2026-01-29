@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: food-delivery-tracker
+
+# database configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5434/food_delivery_db
+    username: mostafa
+    password: mostafa123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+# redis configuration
+  data:
+    redis:
+      host: localhost
+      port: 6380
+
+# kafka configuration
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: food-delivery-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# security configuration
+  security:
+    user:
+      name: admin
+      password: admin
+
+# server configuration
+server:
+  port: 8081
+
+# logging configuration
+logging:
+  level:
+    com.mostafa.fooddelivery: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: DEBUG
