@@ -5,11 +5,11 @@ services:
     image: postgres:15-alpine
     container_name: food-delivery-postgres
     environment:
-      POSTGRES_DB: food_delivery-db
+      POSTGRES_DB: food_delivery_db
       POSTGRES_USER: mostafa
       POSTGRES_PASSWORD: mostafa123
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
@@ -20,7 +20,7 @@ services:
     image: redis:7-alpine
     container_name: food-delivery-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     networks:
       - food_delivery-network
   
@@ -44,7 +44,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     networks:
       - food_delivery-network
