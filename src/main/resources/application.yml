@@ -59,5 +59,5 @@ logging:
 # JWT CONFIGURATION
 # ================================
 jwt:
-  secret: mySecretKeyForJWTtokenGenerationMustBe256bitsLongForHS256Algorithm123456
-  expiration: 86400000  # 24 hours in milliseconds
+  secret: bXlTdXBlclNlY3JldEtleUZvckpXVHRva2VuR2VuZXJhdGlvbk11c3RCZUxvbmdFbm91Z2hGb3JIUzI1NkFsZ29yaXRobQ==
+  expiration: 86400000
