@@ -54,3 +54,10 @@ logging:
     com.mostafa.fooddelivery: DEBUG
     org.springframework.kafka: INFO
     org.hibernate.SQL: DEBUG
+
+# ================================
+# JWT CONFIGURATION
+# ================================
+jwt:
+  secret: mySecretKeyForJWTtokenGenerationMustBe256bitsLongForHS256Algorithm123456
+  expiration: 86400000  # 24 hours in milliseconds
