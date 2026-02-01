@@ -13,6 +13,7 @@ import com.mostafa.fooddelivery.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -21,17 +22,17 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-@Slf4j // Logger
+@Slf4j
 public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final RestaurantRepository restaurantRepository;
     private final MenuItemRepository menuItemRepository;
     private final DriverRepository driverRepository;
+    private final PasswordEncoder passwordEncoder;  // ADD THIS
 
     @Override
     public void run(String... args) {
-        // Only seed if database is empty
         if (userRepository.count() > 0) {
             log.info("Database already has data. Skipping seeding.");
             return;
@@ -39,13 +40,8 @@ public class DataSeeder implements CommandLineRunner {
 
         log.info("🌱 Starting database seeding...");
 
-        // Create Users
         List<User> users = createUsers();
-        
-        // Create Restaurants
         createRestaurants(users);
-        
-        // Create Drivers
         createDrivers(users);
 
         log.info("✅ Database seeding completed!");
@@ -54,10 +50,11 @@ public class DataSeeder implements CommandLineRunner {
     private List<User> createUsers() {
         log.info("Creating users...");
 
+        // USE passwordEncoder.encode() for all passwords!
         User customer1 = User.builder()
                 .name("Ahmed Hassan")
                 .email("ahmed@test.com")
-                .password("password123")  // We'll hash this later with security
+                .password(passwordEncoder.encode("password123"))  // HASHED!
                 .phone("+201234567890")
                 .role(Role.CUSTOMER)
                 .build();
@@ -65,7 +62,7 @@ public class DataSeeder implements CommandLineRunner {
         User customer2 = User.builder()
                 .name("Sara Mohamed")
                 .email("sara@test.com")
-                .password("password123")
+                .password(passwordEncoder.encode("password123"))  // HASHED!
                 .phone("+201234567891")
                 .role(Role.CUSTOMER)
                 .build();
@@ -73,7 +70,7 @@ public class DataSeeder implements CommandLineRunner {
         User restaurantOwner1 = User.builder()
                 .name("Mohamed Ali")
                 .email("mohamed@pizzahouse.com")
-                .password("password123")
+                .password(passwordEncoder.encode("password123"))  // HASHED!
                 .phone("+201111111111")
                 .role(Role.RESTAURANT_OWNER)
                 .build();
@@ -81,7 +78,7 @@ public class DataSeeder implements CommandLineRunner {
         User restaurantOwner2 = User.builder()
                 .name("Fatma Ibrahim")
                 .email("fatma@burgerking.com")
-                .password("password123")
+                .password(passwordEncoder.encode("password123"))  // HASHED!
                 .phone("+201111111112")
                 .role(Role.RESTAURANT_OWNER)
                 .build();
@@ -89,7 +86,7 @@ public class DataSeeder implements CommandLineRunner {
         User driverUser1 = User.builder()
                 .name("Omar Khaled")
                 .email("omar@driver.com")
-                .password("password123")
+                .password(passwordEncoder.encode("password123"))  // HASHED!
                 .phone("+201222222221")
                 .role(Role.DRIVER)
                 .build();
@@ -97,7 +94,7 @@ public class DataSeeder implements CommandLineRunner {
         User driverUser2 = User.builder()
                 .name("Youssef Mahmoud")
                 .email("youssef@driver.com")
-                .password("password123")
+                .password(passwordEncoder.encode("password123"))  // HASHED!
                 .phone("+201222222222")
                 .role(Role.DRIVER)
                 .build();
@@ -105,7 +102,7 @@ public class DataSeeder implements CommandLineRunner {
         User admin = User.builder()
                 .name("Admin User")
                 .email("admin@fooddelivery.com")
-                .password("admin123")
+                .password(passwordEncoder.encode("admin123"))  // HASHED!
                 .phone("+201000000000")
                 .role(Role.ADMIN)
                 .build();
@@ -123,10 +120,10 @@ public class DataSeeder implements CommandLineRunner {
         return users;
     }
 
+    // Keep createRestaurants() and createDrivers() the same as before
     private void createRestaurants(List<User> users) {
         log.info("Creating restaurants and menu items...");
 
-        // Find restaurant owners
         User pizzaOwner = users.stream()
                 .filter(u -> u.getEmail().equals("mohamed@pizzahouse.com"))
                 .findFirst().orElseThrow();
@@ -135,7 +132,6 @@ public class DataSeeder implements CommandLineRunner {
                 .filter(u -> u.getEmail().equals("fatma@burgerking.com"))
                 .findFirst().orElseThrow();
 
-        // Create Pizza House
         Restaurant pizzaHouse = Restaurant.builder()
                 .name("Pizza House")
                 .address("123 Main Street, Cairo")
@@ -148,7 +144,6 @@ public class DataSeeder implements CommandLineRunner {
 
         restaurantRepository.save(pizzaHouse);
 
-        // Pizza House Menu Items
         List<MenuItem> pizzaMenuItems = Arrays.asList(
                 MenuItem.builder()
                         .name("Margherita Pizza")
@@ -189,7 +184,6 @@ public class DataSeeder implements CommandLineRunner {
 
         menuItemRepository.saveAll(pizzaMenuItems);
 
-        // Create Burger King
         Restaurant burgerKing = Restaurant.builder()
                 .name("Burger Kingdom")
                 .address("456 Food Court, Giza")
@@ -202,7 +196,6 @@ public class DataSeeder implements CommandLineRunner {
 
         restaurantRepository.save(burgerKing);
 
-        // Burger Kingdom Menu Items
         List<MenuItem> burgerMenuItems = Arrays.asList(
                 MenuItem.builder()
                         .name("Classic Burger")
@@ -264,7 +257,7 @@ public class DataSeeder implements CommandLineRunner {
                 .isAvailable(true)
                 .rating(4.7)
                 .totalDeliveries(156)
-                .latitude(30.0444)   // Cairo coordinates
+                .latitude(30.0444)
                 .longitude(31.2357)
                 .build();
 
@@ -275,7 +268,7 @@ public class DataSeeder implements CommandLineRunner {
                 .isAvailable(true)
                 .rating(4.5)
                 .totalDeliveries(89)
-                .latitude(30.0131)   // Giza coordinates
+                .latitude(30.0131)
                 .longitude(31.2089)
                 .build();
 
