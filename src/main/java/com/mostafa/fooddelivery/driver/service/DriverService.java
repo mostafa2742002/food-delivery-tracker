@@ -2,6 +2,7 @@ package com.mostafa.fooddelivery.driver.service;
 
 import com.mostafa.fooddelivery.common.sse.OrderSseService;
 import com.mostafa.fooddelivery.driver.dto.DriverLocationEvent;
+import com.mostafa.fooddelivery.driver.dto.DriverLocationResponse;
 import com.mostafa.fooddelivery.driver.dto.UpdateLocationRequest;
 import com.mostafa.fooddelivery.driver.entity.Driver;
 import com.mostafa.fooddelivery.driver.repository.DriverRepository;
@@ -24,6 +25,8 @@ public class DriverService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final OrderSseService orderSseService;
+    private final DriverLocationCache driverLocationCache;
+
 
     public void updateLocation(String driverEmail, UpdateLocationRequest request) {
         User user = userRepository.findByEmail(driverEmail)
@@ -35,6 +38,8 @@ public class DriverService {
         driver.setLatitude(request.getLatitude());
         driver.setLongitude(request.getLongitude());
         driverRepository.save(driver);
+
+        driverLocationCache.saveLocation(driver.getId(), driver.getLatitude(), driver.getLongitude());
 
         // Push live update to all active orders assigned to this driver
         List<Order> activeOrders = orderRepository.findByDriverIdAndStatusNot(
@@ -53,4 +58,20 @@ public class DriverService {
                 orderSseService.sendEvent(order.getId(), "driver_location", event)
         );
     }
+
+    public DriverLocationResponse getDriverLocation(Long driverId) {
+    DriverLocationResponse cached = driverLocationCache.getLocation(driverId);
+    if (cached != null) {
+        return cached;
+    }
+
+    Driver driver = driverRepository.findById(driverId)
+            .orElseThrow(() -> new RuntimeException("Driver not found"));
+
+    return DriverLocationResponse.builder()
+            .latitude(driver.getLatitude())
+            .longitude(driver.getLongitude())
+            .build();
+    }
+
 }
