@@ -196,13 +196,3 @@ com.mostafa.fooddelivery
 - Error responses are standardized via `GlobalExceptionHandler`.
 
 ---
-
-## Next Ideas (Nice CV Boosters)
-- Live map UI (React or Angular)
-- Payment integration with webhook handling
-- Circuit breaker and retry patterns
-- OpenTelemetry tracing + metrics dashboard
-
----
-
-If you want, I can also add a **Postman collection**, **Swagger/OpenAPI**, or a **simple frontend dashboard** to make it even more impressive.
