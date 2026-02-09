@@ -22,4 +22,5 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
     
     // Find top rated available drivers
     List<Driver> findByIsAvailableTrueOrderByRatingDesc();
+
 }

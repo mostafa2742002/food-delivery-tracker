@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.mostafa.fooddelivery.common.sse.OrderSseService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,7 +36,9 @@ public class OrderService {
     private final RestaurantRepository restaurantRepository;
     private final MenuItemRepository menuItemRepository;
     private final DriverRepository driverRepository;
-    private final OrderEventProducer orderEventProducer;  // ADD THIS
+    private final OrderEventProducer orderEventProducer;  
+    private final OrderSseService orderSseService;
+
 
     private static final BigDecimal DELIVERY_FEE = new BigDecimal("15.00");
 
@@ -95,6 +98,17 @@ public class OrderService {
 
         // 🔥 PUBLISH KAFKA EVENT
         publishOrderEvent(savedOrder, "ORDER_PLACED");
+
+        // 🔥 SEND SSE UPDAT
+        orderSseService.sendEvent(
+                savedOrder.getId(),
+                "order_status",
+                OrderStatusEvent.builder()
+                        .orderId(savedOrder.getId())
+                        .status(savedOrder.getStatus())
+                        .timestamp(LocalDateTime.now())
+                        .build()
+        );
 
         return mapToOrderResponse(savedOrder);
     }
@@ -157,6 +171,17 @@ public class OrderService {
         // 🔥 PUBLISH KAFKA EVENT
         String eventType = "ORDER_" + newStatus.name();
         publishOrderEvent(updatedOrder, eventType);
+
+        // 🔥 SEND SSE UPDATE
+        orderSseService.sendEvent(
+                updatedOrder.getId(),
+                "order_status",
+                OrderStatusEvent.builder()
+                        .orderId(updatedOrder.getId())
+                        .status(updatedOrder.getStatus())
+                        .timestamp(LocalDateTime.now())
+                        .build()
+        );
 
         return mapToOrderResponse(updatedOrder);
     }

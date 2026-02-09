@@ -30,4 +30,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     // Find orders waiting for driver assignment
     List<Order> findByStatusAndDriverIsNull(OrderStatus status);
+
+    // Find active orders for a driver (excluding delivered)
+    List<Order> findByDriverIdAndStatusNot(Long driverId, OrderStatus status);
+
 }
