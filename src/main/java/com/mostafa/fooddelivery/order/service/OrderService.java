@@ -2,6 +2,8 @@ package com.mostafa.fooddelivery.order.service;
 
 import com.mostafa.fooddelivery.driver.entity.Driver;
 import com.mostafa.fooddelivery.driver.repository.DriverRepository;
+import com.mostafa.fooddelivery.kafka.event.OrderEvent;
+import com.mostafa.fooddelivery.kafka.producer.OrderEventProducer;
 import com.mostafa.fooddelivery.order.dto.*;
 import com.mostafa.fooddelivery.order.entity.Order;
 import com.mostafa.fooddelivery.order.entity.OrderItem;
@@ -33,6 +35,7 @@ public class OrderService {
     private final RestaurantRepository restaurantRepository;
     private final MenuItemRepository menuItemRepository;
     private final DriverRepository driverRepository;
+    private final OrderEventProducer orderEventProducer;  // ADD THIS
 
     private static final BigDecimal DELIVERY_FEE = new BigDecimal("15.00");
 
@@ -40,11 +43,9 @@ public class OrderService {
     public OrderResponse createOrder(String customerEmail, CreateOrderRequest request) {
         log.info("Creating order for customer: {}", customerEmail);
 
-        // 1. Get customer
         User customer = userRepository.findByEmail(customerEmail)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
 
-        // 2. Get restaurant
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new RuntimeException("Restaurant not found"));
 
@@ -52,7 +53,6 @@ public class OrderService {
             throw new RuntimeException("Restaurant is currently closed");
         }
 
-        // 3. Create order
         Order order = Order.builder()
                 .customer(customer)
                 .restaurant(restaurant)
@@ -62,14 +62,12 @@ public class OrderService {
                 .deliveryFee(DELIVERY_FEE)
                 .build();
 
-        // 4. Add order items and calculate total
         BigDecimal subtotal = BigDecimal.ZERO;
 
         for (OrderItemRequest itemRequest : request.getItems()) {
             MenuItem menuItem = menuItemRepository.findById(itemRequest.getMenuItemId())
                     .orElseThrow(() -> new RuntimeException("Menu item not found: " + itemRequest.getMenuItemId()));
 
-            // Verify item belongs to the restaurant
             if (!menuItem.getRestaurant().getId().equals(restaurant.getId())) {
                 throw new RuntimeException("Menu item does not belong to this restaurant");
             }
@@ -86,20 +84,17 @@ public class OrderService {
                     .build();
 
             order.addItem(orderItem);
-
-            // Calculate subtotal
             subtotal = subtotal.add(menuItem.getPrice().multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
         }
 
-        // 5. Set total price
         order.setTotalPrice(subtotal.add(DELIVERY_FEE));
-
-        // 6. Set estimated delivery time (45 minutes from now)
         order.setEstimatedDeliveryTime(LocalDateTime.now().plusMinutes(45));
 
-        // 7. Save order
         Order savedOrder = orderRepository.save(order);
         log.info("Order created successfully with ID: {}", savedOrder.getId());
+
+        // 🔥 PUBLISH KAFKA EVENT
+        publishOrderEvent(savedOrder, "ORDER_PLACED");
 
         return mapToOrderResponse(savedOrder);
     }
@@ -118,7 +113,6 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        // Verify user has access to this order
         if (!order.getCustomer().getEmail().equals(userEmail) &&
             !order.getRestaurant().getOwner().getEmail().equals(userEmail)) {
             throw new RuntimeException("Access denied to this order");
@@ -145,23 +139,24 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        // Verify owner
         if (!order.getRestaurant().getOwner().getEmail().equals(ownerEmail)) {
             throw new RuntimeException("Access denied: Not the restaurant owner");
         }
 
-        // Validate status transition
         validateStatusTransition(order.getStatus(), newStatus);
 
         order.setStatus(newStatus);
 
-        // If ready for pickup, assign a driver
         if (newStatus == OrderStatus.READY_FOR_PICKUP) {
             assignDriver(order);
         }
 
         Order updatedOrder = orderRepository.save(order);
         log.info("Order {} status updated to {}", orderId, newStatus);
+
+        // 🔥 PUBLISH KAFKA EVENT
+        String eventType = "ORDER_" + newStatus.name();
+        publishOrderEvent(updatedOrder, eventType);
 
         return mapToOrderResponse(updatedOrder);
     }
@@ -170,9 +165,9 @@ public class OrderService {
         List<Driver> availableDrivers = driverRepository.findByIsAvailableTrue();
 
         if (!availableDrivers.isEmpty()) {
-            Driver driver = availableDrivers.get(0);  // Simple assignment: first available
+            Driver driver = availableDrivers.get(0);
             order.setDriver(driver);
-            driver.setAvailable(false);  // Mark driver as busy
+            driver.setAvailable(false);
             driverRepository.save(driver);
             log.info("Driver {} assigned to order {}", driver.getUser().getName(), order.getId());
         } else {
@@ -181,7 +176,6 @@ public class OrderService {
     }
 
     private void validateStatusTransition(OrderStatus current, OrderStatus next) {
-        // Define valid transitions
         boolean valid = switch (current) {
             case PLACED -> next == OrderStatus.ACCEPTED || next == OrderStatus.REJECTED;
             case ACCEPTED -> next == OrderStatus.PREPARING;
@@ -194,6 +188,31 @@ public class OrderService {
         if (!valid) {
             throw new RuntimeException("Invalid status transition from " + current + " to " + next);
         }
+    }
+
+    // ==================== KAFKA EVENT PUBLISHER ====================
+
+    private void publishOrderEvent(Order order, String eventType) {
+        OrderEvent event = OrderEvent.builder()
+                .eventType(eventType)
+                .orderId(order.getId())
+                .status(order.getStatus())
+                .customerId(order.getCustomer().getId())
+                .customerName(order.getCustomer().getName())
+                .customerEmail(order.getCustomer().getEmail())
+                .customerPhone(order.getCustomer().getPhone())
+                .restaurantId(order.getRestaurant().getId())
+                .restaurantName(order.getRestaurant().getName())
+                .driverId(order.getDriver() != null ? order.getDriver().getId() : null)
+                .driverName(order.getDriver() != null ? order.getDriver().getUser().getName() : null)
+                .driverPhone(order.getDriver() != null ? order.getDriver().getUser().getPhone() : null)
+                .totalPrice(order.getTotalPrice())
+                .deliveryAddress(order.getDeliveryAddress())
+                .eventTimestamp(LocalDateTime.now())
+                .estimatedDeliveryTime(order.getEstimatedDeliveryTime())
+                .build();
+
+        orderEventProducer.sendOrderEvent(event);
     }
 
     // ==================== MAPPER ====================
@@ -210,7 +229,6 @@ public class OrderService {
                         .build())
                 .collect(Collectors.toList());
 
-        // Calculate subtotal
         BigDecimal subtotal = order.getTotalPrice().subtract(order.getDeliveryFee());
 
         return OrderResponse.builder()
